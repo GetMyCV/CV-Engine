@@ -12,6 +12,21 @@ A complete CV-generation platform built with Next.js. Each user gets a private w
 
 Letters are filled automatically from the project (role, company, job ad) and the linked CV (name, current role, skills, best quantified achievement). They also borrow the CV's design, so the CV and letters look like a matching set.
 
+## Access model: private admin + client template links
+
+- **Admin only.** Only `inbox.ashen@gmail.com` can sign in or set up the account (`NEXT_PUBLIC_ADMIN_EMAILS` overrides this). Every page is behind that sign-in: the dashboard, editors, template gallery, letters, ATS checker and guide. Anyone else is sent to the sign-in page and refused.
+- **Client template requests** (`/requests`, admin):
+  1. Create a request for a client: their name, an optional WhatsApp number and email, a message, and either a hand-picked shortlist or all designs.
+  2. Send them the link by WhatsApp, email or copy-paste.
+- **Client page** (`/choose`): no sign-in, no menu, no other features. The client sees only the templates (shown with their own name), previews them, chooses one and sends their contact details.
+- **Getting the choice back.** Every route available is used:
+  - **Supabase connected:** saved online and shown automatically under Client requests.
+  - **`NEXT_PUBLIC_WEB3FORMS_KEY` set** (repo variable or secret): emailed to the admin.
+  - **Always:** the client can send a one-click email to the admin containing a selection link. Opening that link imports the choice; the code can also be pasted into "Import a selection".
+- **Build the CV.** "Start CV in this template" creates a project and a CV already set to the chosen design, with the client's name and contact details filled in.
+
+How secure is this? In cloud mode, the database itself enforces admin-only access (`supabase/migrations/0002_admin_and_requests.sql`): only emails in the `admins` table can read or write anything, and clients can only add a selection. After creating the admin account, turn off "Allow new users to sign up" in Supabase → Authentication. In local mode the app refuses other emails, and all data stays in the admin's own browser, which no one else can reach.
+
 ## Features
 
 **CV builder**

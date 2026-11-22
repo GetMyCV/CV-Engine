@@ -1,4 +1,5 @@
 import type { DocumentRecord, Project } from '../types';
+import type { Selection, TemplateRequest } from '../requests';
 import { nowIso, uid } from '../utils';
 import { kvDel, kvGet, kvSet } from './kv';
 import type { AuthBackend, AuthUser, Repo } from './types';
@@ -74,6 +75,25 @@ class LocalRepo implements Repo {
   }
   async deleteDocument(id: string) {
     await kvSet(this.dKey(), (await this.docs()).filter((d) => d.id !== id));
+  }
+  private rKey = () => `u:${this.userId}:requests`;
+  async listRequests() {
+    return ((await kvGet<TemplateRequest[]>(this.rKey())) ?? []).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  }
+  async saveRequest(r: TemplateRequest) {
+    const all = (await kvGet<TemplateRequest[]>(this.rKey())) ?? [];
+    const next = { ...r, updatedAt: nowIso() };
+    const i = all.findIndex((x) => x.id === r.id);
+    if (i >= 0) all[i] = next;
+    else all.push(next);
+    await kvSet(this.rKey(), all);
+    return next;
+  }
+  async deleteRequest(id: string) {
+    await kvSet(this.rKey(), ((await kvGet<TemplateRequest[]>(this.rKey())) ?? []).filter((r) => r.id !== id));
+  }
+  async listSubmittedSelections(): Promise<Selection[]> {
+    return [];
   }
 }
 

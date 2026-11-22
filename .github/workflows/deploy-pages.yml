@@ -50,6 +50,10 @@ jobs:
           # Optional: cloud accounts (public anon key; RLS protects the data).
           NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          # Who may sign in (defaults to inbox.ashen@gmail.com).
+          NEXT_PUBLIC_ADMIN_EMAILS: ${{ vars.NEXT_PUBLIC_ADMIN_EMAILS }}
+          # Optional: emails clients' template choices to the admin (Web3Forms access key).
+          NEXT_PUBLIC_WEB3FORMS_KEY: ${{ secrets.NEXT_PUBLIC_WEB3FORMS_KEY || vars.NEXT_PUBLIC_WEB3FORMS_KEY }}
           # Optional: a server deployment of this app that runs the AI/grammar routes.
           NEXT_PUBLIC_API_BASE: ${{ vars.NEXT_PUBLIC_API_BASE }}
         run: npm run build:pages
