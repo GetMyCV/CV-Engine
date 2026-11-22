@@ -42,6 +42,16 @@ How secure is this? In cloud mode, the database itself enforces admin-only acces
 - A standalone `/ats-checker`: upload a CV (PDF, Word .docx, .txt, or a CV Engine / JSON Resume file) or paste its text. Files are parsed in the browser (pdf.js, mammoth) and never uploaded. It shows exactly the text an ATS would extract, adds file-level checks (scanned PDF with no text layer, tables, images, page count, file size and name), and runs the full structured check on JSON uploads. The printable ATS checklist is on the same page.
 - Every design keeps real, selectable text in a linear reading order. Designs marked **ATS-optimized** use a single reading column; sidebar designs are marked **ATS-friendly**.
 
+**Letters written from your CV, live** (`lib/letters/compose.ts`)
+- Every cover letter, motivation letter and statement of purpose is composed from the linked CV:
+  - the current role and earlier roles, and the top achievements, ranked by numbers and by how well they match the job ad
+  - skills that match the job ad, education and grade, thesis and coursework
+  - projects, certifications, languages (with CEFR levels for European letters), volunteering, awards, publications and work authorisation
+- Each template has its own structure: graduate, career change, referral, prospecting, Canadian newcomer, executive, Master's, scholarship, PhD, Europass job, the SOP sections, and the Canadian study-plan sections.
+- **Real time:** the letter re-writes itself as you change the CV (even in another tab), the job ad, the tone (confident, formal or warm), the length, or which CV sections to include.
+- **Hand edits are kept:** a paragraph you rewrite is marked "Edited" and left alone; click "Regenerate" to hand it back.
+- **Never invents facts:** a few short answers make the letter personal (why this company, career goals, referrer, funding and ties for study permits). Anything required but missing is flagged rather than made up.
+
 **Grammar & style checker** (`lib/grammar`)
 - Runs offline in the browser and checks:
   - 217 common misspellings

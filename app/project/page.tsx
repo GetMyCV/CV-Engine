@@ -19,6 +19,7 @@ import { analyzeCv } from '@/lib/ats';
 import { extractKeywords } from '@/lib/ats/keywords';
 import { templatesFor, type LetterTemplate } from '@/lib/letters/templates';
 import { newLetter, placeholderValues } from '@/lib/letters/model';
+import { applyComposition, composeLetter, defaultCompose } from '@/lib/letters/compose';
 import { newLinkedIn } from '@/lib/linkedin/content';
 import { fromJson } from '@/lib/export/jsonresume';
 import { clone, cx, debounce, downloadBlob, nowIso, slug, uid } from '@/lib/utils';
@@ -325,7 +326,12 @@ function NewDocumentModal({ kind, onClose, project, user, repo, projectDocs, all
       } else {
         const t = templatesFor(kind).find((x) => x.id === templateId) ?? templatesFor(kind)[0]!;
         const values = placeholderValues(project, srcCv, user.name);
-        const data: LetterData = newLetter(t, values, srcCv, project);
+        let data: LetterData = newLetter(t, values, srcCv, project);
+        if (src && srcCv) {
+          // Written from the CV straight away, and kept in sync from then on.
+          data = { ...data, blocks: [], compose: defaultCompose(src.id) };
+          data = applyComposition(data, composeLetter(data, srcCv, project), srcCv);
+        }
         doc = newDocument(project, kind, `${meta?.short ?? 'Letter'} — ${project.company || t.name}`, data);
       }
       const saved = await repo.saveDocument(doc);
