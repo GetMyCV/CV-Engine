@@ -58,6 +58,7 @@ npm run dev                  # http://localhost:3000
 | Script | |
 | --- | --- |
 | `npm run build` / `npm start` | Production build / server |
+| `npm run build:pages` | Static export for GitHub Pages into `./out` |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run lint` | ESLint |
 | `npm test` | Engine tests: designs, ATS, keywords, grammar, letters, import/export |
@@ -69,13 +70,33 @@ npm run dev                  # http://localhost:3000
 | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Enable cloud accounts and sync (otherwise local workspace mode) |
 | `ANTHROPIC_API_KEY` | Enable the AI writing assistant (server-side only) |
 | `LANGUAGETOOL_URL` | Enable the "Deep check" grammar pass, e.g. `https://api.languagetool.org/v2/check` |
+| `ALLOWED_ORIGINS` | Origins allowed to call the API routes cross-origin (default `https://getmycv.github.io`) |
 
-The AI and grammar routes are API routes, so deploy to a Node host (Vercel, Netlify, Render, a VPS), not static GitHub Pages.
+## Hosting
+
+**GitHub Pages (this repo):** <https://getmycv.github.io/CV-Engine/>
+
+`.github/workflows/deploy-pages.yml` builds the static version (`npm run build:pages`, served under `/CV-Engine`) and publishes it on every push to `main`. The one-time setting is **Settings → Pages → Source: GitHub Actions**; the workflow tries to switch it on automatically.
+
+GitHub Pages serves files only, so the static site leaves out the two server routes:
+- The AI assistant falls back to the offline writing helpers.
+- The "Deep check" grammar pass is hidden; the built-in grammar checker still works.
+
+Everything else runs in the browser: accounts, projects, all 468 designs, the ATS and grammar checks, letters, the LinkedIn kit, and PDF/Word export.
+
+Optional repository variables (Settings → Secrets and variables → Actions → Variables):
+
+| Variable | Effect on the Pages build |
+| --- | --- |
+| `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Cloud accounts instead of browser-only workspaces |
+| `NEXT_PUBLIC_API_BASE` | URL of a server deployment of this app (e.g. on Vercel, with `ANTHROPIC_API_KEY` set) that the Pages site calls for AI and deep grammar checks. That server allows `https://getmycv.github.io` by default (`ALLOWED_ORIGINS`). |
+
+**Node hosting (full app incl. AI routes):** `npm run build && npm start`, or import the repo into Vercel/Netlify/Render and set the env vars above.
 
 ## Project structure
 
 ```
-app/                     Routes: landing, login, dashboard, projects/[id]/{cv,letter,linkedin}/[docId],
+app/                     Routes: landing, login, dashboard, project?id=, edit/{cv,letter,linkedin}?doc=,
                          templates, letters, ats-checker, guide, settings, api/{ai,grammar}
 components/cv            CvRenderer (all 468 designs), thumbnails, design gallery
 components/editor        CV & letter editors, section editors, ATS/grammar/design panels

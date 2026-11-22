@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { applyFix, checkText, summarizeIssues, type GrammarIssue, type GrammarLocale } from '@/lib/grammar';
 import type { CheckField } from '@/lib/grammar/fields';
 import { aiEnabled, runAi } from '@/lib/ai/client';
+import { apiUrl } from '@/lib/env';
 import { useToast } from '@/components/ui/Toast';
 import Icon from '@/components/ui/Icon';
 import { cx } from '@/lib/utils';
@@ -31,7 +32,8 @@ export default function GrammarPanel<D>({ doc, fields, onApply, defaultLocale, m
   const toast = useToast();
 
   useEffect(() => {
-    fetch('/api/grammar').then((r) => r.json()).then((d) => setDeepAvailable(Boolean(d.enabled))).catch(() => undefined);
+    const url = apiUrl('/api/grammar');
+    if (url) fetch(url).then((r) => r.json()).then((d) => setDeepAvailable(Boolean(d.enabled))).catch(() => undefined);
     aiEnabled().then(setAi);
   }, []);
 
@@ -52,7 +54,7 @@ export default function GrammarPanel<D>({ doc, fields, onApply, defaultLocale, m
     try {
       const out: Record<string, GrammarIssue[]> = {};
       for (const f of fields) {
-        const res = await fetch('/api/grammar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: f.text, language: locale }) });
+        const res = await fetch(apiUrl('/api/grammar')!, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: f.text, language: locale }) });
         if (!res.ok) throw new Error('Deep check is unavailable right now.');
         const data = (await res.json()) as { matches: Omit<GrammarIssue, 'id' | 'text' | 'source'>[] };
         out[f.key] = data.matches.map((m, i) => ({ ...m, id: `${f.key}-lt-${i}`, text: f.text.slice(m.offset, m.offset + m.length), source: 'languagetool' }));

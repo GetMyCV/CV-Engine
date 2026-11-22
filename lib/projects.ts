@@ -37,7 +37,7 @@ export function newDocument<T>(project: Project, kind: DocKind, title: string, d
 }
 
 export const docHref = (d: Pick<DocumentRecord, 'id' | 'kind' | 'projectId'>) =>
-  `/projects/${d.projectId}/${d.kind === 'cv' ? 'cv' : d.kind === 'linkedin' ? 'linkedin' : 'letter'}/${d.id}`;
+  `/edit/${d.kind === 'cv' ? 'cv' : d.kind === 'linkedin' ? 'linkedin' : 'letter'}?doc=${d.id}`;
 
 /** Adds a snapshot, newest first, capped at 20. */
 export function withVersion<T>(doc: DocumentRecord<T>, label: string): DocumentRecord<T> {

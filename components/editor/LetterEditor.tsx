@@ -91,7 +91,7 @@ export default function LetterEditor({ repo, docId }: { repo: Repo; docId: strin
 
   return (
     <div className="flex h-screen flex-col">
-      <EditorTopBar backHref={`/projects/${doc.projectId}`} backLabel={project?.name ?? 'Project'} title={doc.title} onTitle={setTitle} save={save} undo={undo} redo={redo} canUndo={canUndo} canRedo={canRedo} exports={exports} versions={doc.versions} onSnapshot={snapshot} onRestore={restore} />
+      <EditorTopBar backHref={`/project?id=${doc.projectId}`} backLabel={project?.name ?? 'Project'} title={doc.title} onTitle={setTitle} save={save} undo={undo} redo={redo} canUndo={canUndo} canRedo={canRedo} exports={exports} versions={doc.versions} onSnapshot={snapshot} onRestore={restore} />
       <div className="flex min-h-0 flex-1">
         <div className={cx('flex w-full flex-col border-r border-slate-200 bg-slate-50 lg:w-[520px]', mobilePreview && 'hidden lg:flex')}>
           <div className="flex gap-1 overflow-x-auto border-b border-slate-200 bg-white px-3 pt-2" role="tablist">

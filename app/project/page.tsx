@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import AppShell from '@/components/AppShell';
 import { RequireAuth } from '@/components/AuthProvider';
@@ -38,8 +38,8 @@ export default function ProjectPage() {
 }
 
 function ProjectView({ user, repo }: { user: AuthUser; repo: Repo }) {
-  const { id } = useParams<{ id: string }>();
   const params = useSearchParams();
+  const id = params.get('id') ?? '';
   const router = useRouter();
   const toast = useToast();
   const [project, setProject] = useState<Project | null | undefined>(undefined);
@@ -47,6 +47,11 @@ function ProjectView({ user, repo }: { user: AuthUser; repo: Repo }) {
   const [allDocs, setAllDocs] = useState<DocumentRecord[]>([]);
   const [adding, setAdding] = useState<DocKind | null>(params.get('new') ? 'cv' : null);
   const [editing, setEditing] = useState(false);
+
+  // "new=1" opens the New CV dialog once; drop it so Back/refresh don't reopen it.
+  useEffect(() => {
+    if (params.get('new')) router.replace(`/project?id=${id}`);
+  }, [params, router, id]);
 
   const load = useCallback(async () => {
     const [p, d, all] = await Promise.all([repo.getProject(id), repo.listDocuments(id), repo.listDocuments()]);
@@ -193,7 +198,7 @@ function ProjectView({ user, repo }: { user: AuthUser; repo: Repo }) {
                   <span className="pb-1 text-xs text-ink-mute">/ 100 · {report.grade}</span>
                 </div>
                 {report.keywords.all.length > 0 && <p className="mt-1 text-xs text-ink-mute">Keyword match: {report.keywords.percent}%</p>}
-                <Link href={docHref(cvDoc!) + '?panel=ats'} className="btn-secondary btn-sm mt-3">Open ATS report</Link>
+                <Link href={docHref(cvDoc!) + '&panel=ats'} className="btn-secondary btn-sm mt-3">Open ATS report</Link>
               </>
             ) : (
               <p className="mt-2 text-xs text-ink-mute">Create a CV to see its score.</p>

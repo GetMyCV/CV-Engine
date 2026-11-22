@@ -75,7 +75,7 @@ export default function LinkedInEditor({ repo, docId }: { repo: Repo; docId: str
 
   return (
     <div className="flex min-h-screen flex-col">
-      <EditorTopBar backHref={`/projects/${doc.projectId}`} backLabel={project?.name ?? 'Project'} title={doc.title} onTitle={setTitle} save={save} undo={undo} redo={redo} canUndo={canUndo} canRedo={canRedo} exports={exports} versions={doc.versions} onSnapshot={snapshot} onRestore={restore} />
+      <EditorTopBar backHref={`/project?id=${doc.projectId}`} backLabel={project?.name ?? 'Project'} title={doc.title} onTitle={setTitle} save={save} undo={undo} redo={redo} canUndo={canUndo} canRedo={canRedo} exports={exports} versions={doc.versions} onSnapshot={snapshot} onRestore={restore} />
       <div className="border-b border-slate-200 bg-white px-4">
         <div className="mx-auto flex max-w-6xl gap-1 overflow-x-auto pt-2" role="tablist">
           {(

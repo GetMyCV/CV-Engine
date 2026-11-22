@@ -62,7 +62,7 @@ export function RequireAuth({ children }: { children: (ctx: { user: AuthUser; re
   const router = useRouter();
   const path = usePathname();
   useEffect(() => {
-    if (!loading && !user) router.replace(`/login?next=${encodeURIComponent(path)}`);
+    if (!loading && !user) router.replace(`/login?next=${encodeURIComponent(path + window.location.search)}`);
   }, [loading, user, router, path]);
   if (loading || !user || !repo)
     return (

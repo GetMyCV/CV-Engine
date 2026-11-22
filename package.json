@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test tests/*.test.ts"
+    "test": "tsx --test tests/*.test.ts",
+    "build:pages": "node scripts/build-pages.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.12.0",

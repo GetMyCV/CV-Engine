@@ -1,0 +1,73 @@
+name: Deploy to GitHub Pages
+
+# Publishes the static build of CV Engine to https://getmycv.github.io/CV-Engine/
+#
+# One-time setting: Settings -> Pages -> Source = "GitHub Actions".
+# (configure-pages below tries to enable Pages automatically; if the run fails
+# with a Pages permission error, set the source by hand once.)
+#
+# GitHub Pages serves static files only, so the /api/ai and /api/grammar routes
+# are not included. The app uses its offline writing and grammar helpers there,
+# or a separate server deployment if NEXT_PUBLIC_API_BASE is set (repo variable).
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Build static site
+        env:
+          BASE_PATH: /CV-Engine
+          # Optional: cloud accounts (public anon key; RLS protects the data).
+          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          # Optional: a server deployment of this app that runs the AI/grammar routes.
+          NEXT_PUBLIC_API_BASE: ${{ vars.NEXT_PUBLIC_API_BASE }}
+        run: npm run build:pages
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./out
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

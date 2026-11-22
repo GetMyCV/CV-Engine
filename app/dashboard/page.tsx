@@ -99,7 +99,7 @@ function Dashboard({ user, repo }: { user: AuthUser; repo: Repo }) {
             const pd = docs.filter((d) => d.projectId === p.id);
             const st = STATUSES.find((s) => s.id === p.status)!;
             return (
-              <Link key={p.id} href={`/projects/${p.id}`} className="card group flex flex-col p-5 transition hover:-translate-y-0.5 hover:shadow-sheet">
+              <Link key={p.id} href={`/project?id=${p.id}`} className="card group flex flex-col p-5 transition hover:-translate-y-0.5 hover:shadow-sheet">
                 <div className="flex items-start gap-3">
                   <span className="mt-1 h-3 w-3 shrink-0 rounded-full" style={{ background: p.color }} />
                   <div className="min-w-0 flex-1">
@@ -145,7 +145,7 @@ function NewProjectModal({ open, onClose, user, repo }: { open: boolean; onClose
     setBusy(true);
     try {
       const p = await repo.saveProject(newProject(user.id, { name: [targetRole, company].filter(Boolean).join(' · ') || 'Untitled project', targetRole, company, region, jobDescription: jd }));
-      router.push(`/projects/${p.id}?new=1`);
+      router.push(`/project?id=${p.id}&new=1`);
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Could not create project', 'error');
       setBusy(false);

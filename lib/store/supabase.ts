@@ -156,7 +156,7 @@ export const supabaseAuth: AuthBackend = {
     const { data, error } = await supabase().auth.signUp({
       email,
       password,
-      options: { data: { name }, emailRedirectTo: typeof window !== 'undefined' ? `${window.location.origin}/dashboard` : undefined },
+      options: { data: { name }, emailRedirectTo: typeof window !== 'undefined' ? `${window.location.origin}${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/dashboard` : undefined },
     });
     if (error) throw new Error(error.message);
     if (!data.session || !data.user) return { pendingConfirmation: true };
@@ -166,7 +166,7 @@ export const supabaseAuth: AuthBackend = {
     await supabase().auth.signOut();
   },
   async resetPassword(email) {
-    const { error } = await supabase().auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/login` });
+    const { error } = await supabase().auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/login` });
     if (error) throw new Error(error.message);
   },
   repo(user) {
