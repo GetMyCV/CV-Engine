@@ -24,7 +24,7 @@ Letters are filled automatically from the project (role, company, job ad) and th
 - 35+ weighted checks in six groups: contact & header, structure, content quality, length & format, keywords, and region rules. Each check explains how to fix the problem, with a "Fix" jump to the relevant section.
 - Keyword extraction from the job ad, plus a match percentage. Click a missing keyword to add it to your skills.
 - "What the ATS reads": the plain-text layer in reading order.
-- A standalone `/ats-checker` for any pasted CV, plus the full printable ATS checklist.
+- A standalone `/ats-checker`: upload a CV (PDF, Word .docx, .txt, or a CV Engine / JSON Resume file) or paste its text. Files are parsed in the browser (pdf.js, mammoth) and never uploaded. It shows exactly the text an ATS would extract, adds file-level checks (scanned PDF with no text layer, tables, images, page count, file size and name), and runs the full structured check on JSON uploads. The printable ATS checklist is on the same page.
 - Every design keeps real, selectable text in a linear reading order. Designs marked **ATS-optimized** use a single reading column; sidebar designs are marked **ATS-friendly**.
 
 **Grammar & style checker** (`lib/grammar`)
@@ -45,7 +45,7 @@ Letters are filled automatically from the project (role, company, job ad) and th
 **Accounts & storage**
 - **Local workspace mode** (default, zero setup). Accounts with salted PBKDF2 password hashes and per-user projects are stored in the browser's IndexedDB. This keeps profiles separate on a shared machine, but it is not server-grade security.
 - **Cloud mode.** Set the Supabase env vars and run `supabase/migrations/0001_init.sql`. You get email/password auth, and projects and documents live in Postgres with Row Level Security restricting every row to its owner.
-- Full backup and restore (JSON) from Account settings; JSON Resume import/export.
+- **JSON export & import:** every document (CV, letters, LinkedIn kit) exports as a complete CV Engine JSON file (`*.cv-engine.json`: content, design and settings) from the editor's Export menu or the project page, and re-imports via **Import JSON** on any project. CVs also export and import as JSON Resume. Full-account backup and restore is in Account settings.
 
 ## Getting started
 

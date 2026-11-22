@@ -12,6 +12,7 @@ import { normalizeCv, sampleCv } from '@/lib/cv-model';
 import { cvToPlainText } from '@/lib/export/text';
 import { runAi } from '@/lib/ai/client';
 import { cx, downloadBlob, slug, uid, wordCount } from '@/lib/utils';
+import { toDocumentFile } from '@/lib/export/document';
 import LetterRenderer from '@/components/letters/LetterRenderer';
 import { PAGE } from '@/components/cv/CvRenderer';
 import ScaledSheet from '@/components/ScaledSheet';
@@ -62,6 +63,7 @@ export default function LetterEditor({ repo, docId }: { repo: Repo; docId: strin
     { label: 'Download PDF', hint: `${l.design.pageSize}, matches your CV design`, icon: 'print', run: () => print(<LetterRenderer letter={l} />, fileBase, l.design.pageSize) },
     { label: 'Download Word (.docx)', hint: 'Editable letter', icon: 'file', run: async () => { const { letterToDocx } = await import('@/lib/export/docx'); downloadBlob(await letterToDocx(l), `${fileBase}.docx`); } },
     { label: 'Download plain text (.txt)', hint: 'For email bodies and web forms', icon: 'file', run: () => downloadBlob(new Blob([letterPlainText(l)], { type: 'text/plain' }), `${fileBase}.txt`) },
+    { label: 'Export as JSON', hint: 'Complete CV Engine file — re-import into any project', icon: 'download', run: () => downloadBlob(new Blob([JSON.stringify(toDocumentFile(doc), null, 2)], { type: 'application/json' }), `${fileBase}.cv-engine.json`) },
     { label: 'Copy as text', hint: 'Paste into an email', icon: 'copy', run: async () => { await navigator.clipboard.writeText(letterPlainText(l)); toast('Copied', 'success'); } },
   ];
 

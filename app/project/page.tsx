@@ -21,7 +21,8 @@ import { templatesFor, type LetterTemplate } from '@/lib/letters/templates';
 import { newLetter, placeholderValues } from '@/lib/letters/model';
 import { newLinkedIn } from '@/lib/linkedin/content';
 import { fromJson } from '@/lib/export/jsonresume';
-import { clone, cx, debounce, nowIso, uid } from '@/lib/utils';
+import { clone, cx, debounce, downloadBlob, nowIso, slug, uid } from '@/lib/utils';
+import { isDocumentFile, toDocumentFile } from '@/lib/export/document';
 
 export default function ProjectPage() {
   return (
@@ -95,6 +96,24 @@ function ProjectView({ user, repo }: { user: AuthUser; repo: Repo }) {
     await repo.deleteDocument(d.id);
     load();
   };
+  const exportJson = (d: DocumentRecord) => downloadBlob(new Blob([JSON.stringify(toDocumentFile(d), null, 2)], { type: 'application/json' }), `${slug(d.title)}.cv-engine.json`);
+  const importDocument = async (file: File) => {
+    try {
+      const raw = JSON.parse(await file.text());
+      let doc: DocumentRecord;
+      if (isDocumentFile(raw)) doc = newDocument(project, raw.kind, raw.title || 'Imported document', raw.kind === 'cv' ? normalizeCv(raw.data as Partial<CvData>) : raw.data);
+      else {
+        const cv = fromJson(raw);
+        if (!cv) throw new Error('This is not a CV Engine document or JSON Resume file.');
+        doc = newDocument(project, 'cv', `CV — ${fullName(cv.personal) || 'Imported'}`, cv);
+      }
+      await repo.saveDocument(doc);
+      toast(`Imported “${doc.title}”`, 'success');
+      load();
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Import failed', 'error');
+    }
+  };
   const removeProject = async () => {
     if (!confirm(`Delete the project “${project.name}” and all ${docs.length} documents in it? This cannot be undone.`)) return;
     await repo.deleteProject(project.id);
@@ -132,6 +151,10 @@ function ProjectView({ user, repo }: { user: AuthUser; repo: Repo }) {
         <div>
           <div className="flex items-center justify-between">
             <h2 className="font-display text-lg font-semibold">Documents</h2>
+            <label className="btn-ghost btn-sm cursor-pointer" title="Import a CV Engine document (.json) or a JSON Resume">
+              <Icon name="upload" className="h-3.5 w-3.5" /> Import JSON
+              <input type="file" accept="application/json,.json" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; if (f) importDocument(f); e.target.value = ''; }} />
+            </label>
           </div>
           <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-5">
             {DOC_KINDS.map((k) => (
@@ -173,6 +196,9 @@ function ProjectView({ user, repo }: { user: AuthUser; repo: Repo }) {
                     <div className="mt-2 flex items-center justify-between text-[11px] text-ink-mute">
                       <span>Edited {new Date(d.updatedAt).toLocaleString()}</span>
                       <span className="flex gap-1 opacity-60 group-hover:opacity-100">
+                        <button className="btn-ghost btn-sm" onClick={() => exportJson(d)} title="Download as JSON" aria-label="Download as JSON">
+                          <Icon name="download" />
+                        </button>
                         <button className="btn-ghost btn-sm" onClick={() => duplicate(d)} title="Duplicate" aria-label="Duplicate">
                           <Icon name="copy" />
                         </button>
@@ -346,7 +372,7 @@ function NewDocumentModal({ kind, onClose, project, user, repo, projectDocs, all
                   ['copy', 'Copy an existing CV', `Reuse one of your ${cvs.length} CVs and tailor it.`],
                   ['blank', 'Blank CV', 'Start fresh with guided sections.'],
                   ['sample', 'Sample CV', 'See a complete example, then overwrite it.'],
-                  ['import', 'Import JSON', 'JSON Resume or CV Engine backup.'],
+                  ['import', 'Import JSON', 'CV Engine CV export or JSON Resume.'],
                 ] as const
               )
                 .filter(([id]) => id !== 'copy' || cvs.length)
