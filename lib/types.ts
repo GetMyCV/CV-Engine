@@ -252,7 +252,42 @@ export type CvData = {
 
 /* -------------------------------------------------------------- letters */
 
-export type LetterBlock = { id: string; heading: string; body: string };
+/** A paragraph. Composed letters key blocks by section (e.g. "opening") so hand edits survive re-composition. */
+export type LetterBlock = { id: string; heading: string; body: string; key?: string };
+
+export type LetterTone = 'confident' | 'formal' | 'warm';
+export type LetterLength = 'short' | 'standard' | 'detailed';
+
+/** Settings of the real-time composer, which writes the letter from the linked CV. */
+export type LetterCompose = {
+  /** When on, the letter re-writes itself whenever the CV, job or settings change. */
+  live: boolean;
+  /** Document id of the CV the letter is written from. */
+  cvId: string;
+  tone: LetterTone;
+  length: LetterLength;
+  include: {
+    achievements: boolean;
+    earlierRoles: boolean;
+    skills: boolean;
+    education: boolean;
+    projects: boolean;
+    certifications: boolean;
+    languages: boolean;
+    volunteering: boolean;
+    awards: boolean;
+  };
+  /** What the CV cannot say — woven into the letter when filled in. */
+  why: string;
+  goals: string;
+  story: string;
+  referrer: string;
+  program: string;
+  funding: string;
+  ties: string;
+  /** Keys of blocks the user rewrote by hand; the composer leaves them alone. */
+  edited: string[];
+};
 
 export type LetterData = {
   templateId: string;
@@ -269,6 +304,8 @@ export type LetterData = {
   /** Word target for SOPs/motivation letters (0 = none). */
   wordTarget: number;
   design: { designId: string; accent: string; font: string; pageSize: PageSize; fontScale: number };
+  /** Absent on letters made before the composer existed (they stay manual). */
+  compose?: LetterCompose;
 };
 
 /* ------------------------------------------------------------- LinkedIn */

@@ -1,6 +1,6 @@
 'use client';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { CvData, DocumentRecord, LetterData } from '@/lib/types';
+import type { CvData, DocumentRecord, LetterBlock, LetterCompose, LetterData } from '@/lib/types';
 import { DOC_KINDS } from '@/lib/types';
 import type { Repo } from '@/lib/store';
 import { letterFields } from '@/lib/grammar/fields';
@@ -13,6 +13,9 @@ import { cvToPlainText } from '@/lib/export/text';
 import { runAi } from '@/lib/ai/client';
 import { cx, downloadBlob, slug, uid, wordCount } from '@/lib/utils';
 import { toDocumentFile } from '@/lib/export/document';
+import { applyComposition, composeLetter, defaultCompose } from '@/lib/letters/compose';
+import { onChange as onStoreChange } from '@/lib/store/events';
+import ComposerPanel from '@/components/letters/ComposerPanel';
 import LetterRenderer from '@/components/letters/LetterRenderer';
 import { PAGE } from '@/components/cv/CvRenderer';
 import ScaledSheet from '@/components/ScaledSheet';
@@ -27,11 +30,11 @@ import GrammarPanel from './GrammarPanel';
 import { AiButton, useAiAvailable } from './CvSections';
 import { useDocument } from './useDocument';
 
-type Tab = 'content' | 'design' | 'grammar' | 'template';
+type Tab = 'compose' | 'content' | 'design' | 'grammar' | 'template';
 
 export default function LetterEditor({ repo, docId }: { repo: Repo; docId: string }) {
-  const { doc, project, save, setData, setTitle, undo, redo, canUndo, canRedo, snapshot, restore } = useDocument<LetterData>(repo, docId, (raw) => normalizeLetter(raw as Partial<LetterData>));
-  const [tab, setTab] = useState<Tab>('content');
+  const { doc, project, setProject, save, setData, setTitle, undo, redo, canUndo, canRedo, snapshot, restore } = useDocument<LetterData>(repo, docId, (raw) => normalizeLetter(raw as Partial<LetterData>));
+  const [tab, setTab] = useState<Tab>('compose');
   const [cvs, setCvs] = useState<DocumentRecord<CvData>[]>([]);
   const [gallery, setGallery] = useState(false);
   const [mobilePreview, setMobilePreview] = useState(false);
@@ -50,6 +53,41 @@ export default function LetterEditor({ repo, docId }: { repo: Repo; docId: strin
   const words = l ? wordCount(l.blocks.map((b) => b.body).join(' ')) : 0;
   const placeholders = l ? (l.blocks.map((b) => b.body).join(' ') + l.subject).match(/\[[^\]]{2,60}\]/g) ?? [] : [];
   const grammarCount = useMemo(() => (l ? letterFields(l).reduce((n, f) => n + checkText(f.text, { mode: 'letter' }).length, 0) : 0), [l]);
+
+  /* ---------------------------------------------- real-time composer */
+  const compose = l?.compose;
+  const linkedDoc = useMemo(() => cvs.find((c) => c.id === compose?.cvId) ?? projectCv, [cvs, compose?.cvId, projectCv]);
+  const linkedCv = useMemo(() => (linkedDoc ? normalizeCv(linkedDoc.data) : null), [linkedDoc]);
+  const composed = useMemo(() => (l?.compose ? composeLetter(l, linkedCv, project) : null), [l, linkedCv, project]);
+
+  // Re-write the letter whenever the CV, project or composer settings change.
+  useEffect(() => {
+    if (!l || !l.compose?.live || !composed) return;
+    const next = applyComposition(l, composed, linkedCv);
+    if (JSON.stringify(next) !== JSON.stringify(l)) setData(next);
+  }, [l, composed, linkedCv, setData]);
+
+  // Pick up CV and project saves (this tab or others) as they happen.
+  const projectId = doc?.projectId;
+  useEffect(
+    () =>
+      onStoreChange(async (e) => {
+        if (e.type === 'document') {
+          const d = await repo.getDocument(e.id);
+          if (d?.kind === 'cv') setCvs((list) => (list.some((x) => x.id === d.id) ? list.map((x) => (x.id === d.id ? (d as DocumentRecord<CvData>) : x)) : [...list, d as DocumentRecord<CvData>]));
+        } else if (e.type === 'project' && e.id === projectId) {
+          const p = await repo.getProject(e.id);
+          if (p) setProject(p);
+        }
+      }),
+    [repo, projectId, setProject],
+  );
+
+  const setCompose = useCallback((patch: Partial<LetterCompose>) => setData((d) => ({ ...d, compose: { ...(d.compose ?? defaultCompose(projectCv?.id ?? '')), ...patch } })), [setData, projectCv?.id]);
+  /** A hand edit to a composed part: keep it from now on. */
+  const markEdited = (key: string | undefined, patch: Partial<LetterData>) =>
+    up(l?.compose && key ? { ...patch, compose: { ...l.compose, edited: [...new Set([...l.compose.edited, key])] } } : patch);
+  const editBlock = (b: LetterBlock, patch: Partial<LetterBlock>) => markEdited(b.key, { blocks: l!.blocks.map((x) => (x.id === b.id ? { ...x, ...patch } : x)) });
 
   if (doc === undefined) return <p className="p-8 animate-pulse text-sm text-ink-mute">Loading…</p>;
   if (doc === null || !l) return <p className="p-8 text-sm">This document could not be found.</p>;
@@ -82,6 +120,8 @@ export default function LetterEditor({ repo, docId }: { repo: Repo; docId: strin
       locale,
     });
     snapshot('Before AI draft');
+    // The AI draft replaces the composed text, so pause live mode (turn it back on to recompose).
+    if (compose?.live) setCompose({ live: false });
     const paras = text.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
     up({
       blocks: paras.map((p, i) => {
@@ -97,16 +137,37 @@ export default function LetterEditor({ repo, docId }: { repo: Repo; docId: strin
       <div className="flex min-h-0 flex-1">
         <div className={cx('flex w-full flex-col border-r border-slate-200 bg-slate-50 lg:w-[520px]', mobilePreview && 'hidden lg:flex')}>
           <div className="flex gap-1 overflow-x-auto border-b border-slate-200 bg-white px-3 pt-2" role="tablist">
-            {(['content', 'design', 'grammar', 'template'] as Tab[]).map((t) => (
-              <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)} className={cx('flex items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium capitalize', tab === t ? 'border-brand-600 text-brand-700' : 'border-transparent text-ink-mute hover:text-ink')}>
-                {t}
+            {(['compose', 'content', 'design', 'grammar', 'template'] as Tab[]).map((t) => (
+              <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)} className={cx('flex items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium', tab === t ? 'border-brand-600 text-brand-700' : 'border-transparent text-ink-mute hover:text-ink')}>
+                {t === 'compose' ? 'Write from CV' : t === 'content' ? 'Edit text' : t[0]!.toUpperCase() + t.slice(1)}
+                {t === 'compose' && compose?.live && <span className="chip bg-emerald-100 text-emerald-700">Live</span>}
                 {t === 'grammar' && <span className={cx('chip', grammarCount ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700')}>{grammarCount || '✓'}</span>}
               </button>
             ))}
           </div>
           <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
+            {tab === 'compose' &&
+              (compose ? (
+                <ComposerPanel compose={compose} onChange={setCompose} cvs={cvs.filter((c) => c.projectId === doc.projectId).concat(cvs.filter((c) => c.projectId !== doc.projectId))} composed={composed} templateId={l.templateId} kind={kind} words={words} />
+              ) : (
+                <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm">
+                  <h3 className="font-semibold">Write this letter from your CV</h3>
+                  <p className="mt-1 text-ink-soft">This letter was written by hand. Turn on the composer to rewrite it from your CV — every achievement, skill and qualification, matched to the job ad — and keep it updated in real time. Your current text is saved in History first.</p>
+                  <button
+                    className="btn-primary btn-sm mt-3"
+                    disabled={!cvs.length}
+                    onClick={() => {
+                      snapshot('Before writing from CV');
+                      up({ blocks: [], compose: defaultCompose(projectCv?.id ?? '') });
+                    }}
+                  >
+                    {cvs.length ? 'Write from my CV (live)' : 'Create a CV first'}
+                  </button>
+                </div>
+              ))}
             {tab === 'content' && (
               <>
+                {compose?.live && <p className="rounded-xl bg-emerald-50 p-3 text-[11px] text-emerald-800">Live mode: paragraphs marked “From CV” update automatically. Editing one keeps your wording from then on — use “Regenerate” to hand it back to the composer.</p>}
                 <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-3 text-xs">
                   <span className={cx('font-semibold', l.wordTarget && Math.abs(words - l.wordTarget) > l.wordTarget * 0.25 ? 'text-amber-600' : 'text-emerald-600')}>
                     {words} words{l.wordTarget ? ` / target ${l.wordTarget}` : ''}
@@ -144,29 +205,36 @@ export default function LetterEditor({ repo, docId }: { repo: Repo; docId: strin
                     )}
                   </div>
                 </details>
-                <TextInput label="Subject line" value={l.subject} onChange={(v) => up({ subject: v })} />
-                <TextInput label="Salutation" value={l.salutation} onChange={(v) => up({ salutation: v })} />
+                <TextInput label="Subject line" value={l.subject} onChange={(v) => markEdited('subject', { subject: v })} />
+                <TextInput label="Salutation" value={l.salutation} onChange={(v) => markEdited('salutation', { salutation: v })} />
                 <Toggle label="Show section headings (SOP style)" checked={l.showHeadings} onChange={(v) => up({ showHeadings: v })} />
                 {l.blocks.map((b, i) => (
                   <div key={b.id} className="rounded-xl border border-slate-200 bg-white p-3">
                     <div className="mb-2 flex items-center gap-2">
                       {l.showHeadings ? (
-                        <input className="input py-1 text-sm font-semibold" value={b.heading} placeholder="Section heading" onChange={(e) => up({ blocks: l.blocks.map((x) => (x.id === b.id ? { ...x, heading: e.target.value } : x)) })} />
+                        <input className="input py-1 text-sm font-semibold" value={b.heading} placeholder="Section heading" onChange={(e) => editBlock(b, { heading: e.target.value })} />
                       ) : (
                         <span className="text-xs font-semibold text-ink-mute">Paragraph {i + 1}</span>
                       )}
+                      {compose && b.key && (compose.edited.includes(b.key) ? (
+                        <button className="chip bg-amber-100 text-amber-800 hover:bg-amber-200" title="Hand the paragraph back to the composer" onClick={() => setCompose({ edited: compose.edited.filter((k) => k !== b.key) })}>
+                          Edited · Regenerate ↻
+                        </button>
+                      ) : (
+                        <span className="chip bg-emerald-100 text-emerald-700">From CV</span>
+                      ))}
                       <span className="ml-auto text-[11px] text-ink-mute">{wordCount(b.body)} w</span>
                       <button className="btn-ghost btn-sm" disabled={i === 0} onClick={() => { const n = [...l.blocks]; [n[i - 1], n[i]] = [n[i]!, n[i - 1]!]; up({ blocks: n }); }} aria-label="Move up"><Icon name="up" className="h-3.5 w-3.5" /></button>
                       <button className="btn-ghost btn-sm text-red-500" onClick={() => up({ blocks: l.blocks.filter((x) => x.id !== b.id) })} aria-label="Remove paragraph"><Icon name="trash" className="h-3.5 w-3.5" /></button>
                     </div>
-                    <TextArea value={b.body} onChange={(v) => up({ blocks: l.blocks.map((x) => (x.id === b.id ? { ...x, body: v } : x)) })} rows={4} />
+                    <TextArea value={b.body} onChange={(v) => editBlock(b, { body: v })} rows={4} />
                   </div>
                 ))}
                 <button className="btn-secondary btn-sm w-full border-dashed" onClick={() => up({ blocks: [...l.blocks, { id: uid('b'), heading: '', body: '' }] })}>
                   <Icon name="plus" className="h-3.5 w-3.5" /> Add paragraph
                 </button>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <TextInput label="Closing" value={l.closing} onChange={(v) => up({ closing: v })} />
+                  <TextInput label="Closing" value={l.closing} onChange={(v) => markEdited('closing', { closing: v })} />
                   <TextInput label="Signature" value={l.signature} onChange={(v) => up({ signature: v })} />
                 </div>
                 <div className="rounded-xl bg-brand-50/70 p-3 text-[11px] leading-relaxed text-brand-900">
@@ -210,7 +278,10 @@ export default function LetterEditor({ repo, docId }: { repo: Repo; docId: strin
                 </div>
               </div>
             )}
-            {tab === 'grammar' && <GrammarPanel doc={l} fields={letterFields(l)} onApply={(next) => setData(next)} defaultLocale={locale} mode="letter" />}
+            {tab === 'grammar' && <GrammarPanel doc={l} fields={letterFields(l)} onApply={(next) => {
+                const changed = next.blocks.filter((b, i) => b.key && b.body !== l.blocks[i]?.body).map((b) => b.key!);
+                setData(next.compose && changed.length ? { ...next, compose: { ...next.compose, edited: [...new Set([...next.compose.edited, ...changed])] } } : next);
+              }} defaultLocale={locale} mode="letter" />}
             {tab === 'template' && (
               <div className="space-y-2">
                 <p className="text-xs text-ink-mute">Switching template replaces the paragraphs (a version is saved first, so you can restore it from History).</p>
@@ -221,6 +292,10 @@ export default function LetterEditor({ repo, docId }: { repo: Repo; docId: strin
                     onClick={() => {
                       if (!confirm(`Switch to “${t.name}”? Your current paragraphs will be replaced (saved in History).`)) return;
                       snapshot('Before template switch');
+                      if (compose) {
+                        up({ templateId: t.id, blocks: [], showHeadings: Boolean(t.showHeadings), wordTarget: t.wordTarget ?? (t.kind === 'cover' ? 350 : 0), compose: { ...compose, edited: [] } });
+                        return;
+                      }
                       const cv = projectCv ? normalizeCv(projectCv.data) : null;
                       const fresh = newLetter(t, placeholderValues(project, cv, l.sender.name), cv, project);
                       up({ templateId: t.id, blocks: fresh.blocks, subject: fresh.subject, salutation: fresh.salutation, closing: fresh.closing, showHeadings: fresh.showHeadings, wordTarget: fresh.wordTarget });

@@ -6,6 +6,7 @@ import { PAGE } from '@/components/cv/CvRenderer';
 import ScaledSheet from '@/components/ScaledSheet';
 import { LETTER_TEMPLATES, type LetterTemplate } from '@/lib/letters/templates';
 import { newLetter, placeholderValues } from '@/lib/letters/model';
+import { applyComposition, composeLetter, defaultCompose } from '@/lib/letters/compose';
 import { sampleCv } from '@/lib/cv-model';
 import { DOC_KINDS } from '@/lib/types';
 import { cx } from '@/lib/utils';
@@ -19,13 +20,15 @@ export default function LettersPage() {
   const list = LETTER_TEMPLATES.filter((t) => t.kind === kind);
   const cv = sampleCv();
   const values = { ...placeholderValues({ targetRole: 'Senior Data Analyst', company: 'Northwind Labs', region: 'canada' } as never, cv, ''), program: 'MSc in Data Science', targetUniversity: 'University of Toronto' };
-  const letter = newLetter(selected, values, cv, null);
+  const sampleProject = { targetRole: kind === 'cover' ? 'Senior Data Analyst' : '', company: kind === 'cover' ? 'Northwind Labs' : 'University of Toronto', region: 'canada', jobDescription: 'Senior Data Analyst: SQL, Python, Tableau, dbt, Snowflake, A/B testing and stakeholder management.' } as never;
+  const base = { ...newLetter(selected, values, cv, null), blocks: [], compose: { ...defaultCompose('sample'), program: 'MSc in Data Science' } };
+  const letter = applyComposition(base, composeLetter(base, cv, sampleProject), cv);
   letter.design.designId = 'meridian-navy';
   return (
     <AppShell>
       <div className="container-app py-10">
         <h1 className="font-display text-3xl font-bold">Cover letter, motivation letter & SOP templates</h1>
-        <p className="mt-2 max-w-2xl text-ink-soft">{LETTER_TEMPLATES.length} proven structures. In a project they are filled automatically from your CV and the job — anything in [brackets] is for you to personalise.</p>
+        <p className="mt-2 max-w-2xl text-ink-soft">{LETTER_TEMPLATES.length} proven structures. In a project, each letter is written automatically from your CV and the job ad — and rewrites itself in real time when your CV changes.</p>
         <div className="mt-6 flex gap-2">
           {KINDS.map((k) => (
             <button key={k} onClick={() => { setKind(k); setSelected(LETTER_TEMPLATES.find((t) => t.kind === k)!); }} className={cx('rounded-full px-4 py-1.5 text-sm font-semibold', kind === k ? 'bg-brand-600 text-white' : 'bg-white text-ink-soft ring-1 ring-slate-200')}>

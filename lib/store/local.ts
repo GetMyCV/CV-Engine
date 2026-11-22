@@ -2,6 +2,7 @@ import type { DocumentRecord, Project } from '../types';
 import type { Selection, TemplateRequest } from '../requests';
 import { nowIso, uid } from '../utils';
 import { kvDel, kvGet, kvSet } from './kv';
+import { notifyChange } from './events';
 import type { AuthBackend, AuthUser, Repo } from './types';
 
 /**
@@ -44,6 +45,7 @@ class LocalRepo implements Repo {
     if (i >= 0) all[i] = next;
     else all.push(next);
     await kvSet(this.pKey(), all);
+    notifyChange({ type: 'project', id: next.id });
     return next;
   }
   async deleteProject(id: string) {
@@ -71,6 +73,7 @@ class LocalRepo implements Repo {
       p.updatedAt = next.updatedAt;
       await kvSet(this.pKey(), projects);
     }
+    notifyChange({ type: 'document', id: next.id });
     return next;
   }
   async deleteDocument(id: string) {

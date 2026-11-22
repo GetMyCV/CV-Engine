@@ -3,6 +3,7 @@ import type { DocumentRecord, Project } from '../types';
 import type { Selection, TemplateRequest } from '../requests';
 import { nowIso } from '../utils';
 import type { AuthBackend, AuthUser, Repo } from './types';
+import { notifyChange } from './events';
 
 /**
  * Cloud mode: Supabase Auth for accounts, Postgres for storage. Row Level
@@ -111,6 +112,7 @@ class SupabaseRepo implements Repo {
   }
   async saveProject(p: Project) {
     const row = check(await supabase().from('projects').upsert(toProject(p, this.userId)).select().single());
+    notifyChange({ type: 'project', id: p.id });
     return fromProject(row as ProjectRow);
   }
   async deleteProject(id: string) {
@@ -128,6 +130,7 @@ class SupabaseRepo implements Repo {
   async saveDocument(d: DocumentRecord) {
     const row = check(await supabase().from('documents').upsert(toDoc(d, this.userId)).select().single());
     await supabase().from('projects').update({ updated_at: nowIso() }).eq('id', d.projectId);
+    notifyChange({ type: 'document', id: d.id });
     return fromDoc(row as DocRow);
   }
   async deleteDocument(id: string) {
