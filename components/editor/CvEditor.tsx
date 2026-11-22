@@ -9,6 +9,7 @@ import { cvFields } from '@/lib/grammar/fields';
 import { checkText } from '@/lib/grammar';
 import { cvToPlainText } from '@/lib/export/text';
 import { toJsonResume } from '@/lib/export/jsonresume';
+import { toDocumentFile } from '@/lib/export/document';
 import { runAi } from '@/lib/ai/client';
 import { extractKeywords } from '@/lib/ats/keywords';
 import { cx, debounce, downloadBlob, slug, uid } from '@/lib/utils';
@@ -79,7 +80,8 @@ export default function CvEditor({ repo, docId }: { repo: Repo; docId: string })
     { label: 'Download PDF', hint: `Print-ready ${cv.design.pageSize}, selectable text, clickable links`, icon: 'print', run: () => { snapshot('Exported PDF'); print(<CvRenderer cv={cv} region={region} />, fileBase, cv.design.pageSize); } },
     { label: 'Download Word (.docx)', hint: 'Editable, single-column ATS format', icon: 'file', run: async () => { const { cvToDocx } = await import('@/lib/export/docx'); downloadBlob(await cvToDocx(cv), `${fileBase}.docx`); } },
     { label: 'Download plain text (.txt)', hint: 'For online application forms', icon: 'file', run: () => downloadBlob(new Blob([cvToPlainText(cv)], { type: 'text/plain' }), `${fileBase}.txt`) },
-    { label: 'Export JSON Resume', hint: 'Open standard — backup or move to another tool', icon: 'download', run: () => downloadBlob(new Blob([JSON.stringify(toJsonResume(cv), null, 2)], { type: 'application/json' }), `${fileBase}.json`) },
+    { label: 'Export CV as JSON', hint: 'Complete CV Engine file: content, design & settings. Re-import any time.', icon: 'download', run: () => downloadBlob(new Blob([JSON.stringify(toDocumentFile(doc), null, 2)], { type: 'application/json' }), `${fileBase}.cv-engine.json`) },
+    { label: 'Export JSON Resume', hint: 'Open jsonresume.org standard — for other tools', icon: 'download', run: () => downloadBlob(new Blob([JSON.stringify(toJsonResume(cv), null, 2)], { type: 'application/json' }), `${fileBase}.json`) },
     { label: 'Copy as text', hint: 'Paste into LinkedIn or email', icon: 'copy', run: async () => { await navigator.clipboard.writeText(cvToPlainText(cv)); toast('Copied to clipboard', 'success'); } },
   ];
 

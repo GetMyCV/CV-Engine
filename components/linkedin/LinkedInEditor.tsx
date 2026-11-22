@@ -7,7 +7,8 @@ import { HEADLINE_FORMULAS, LINKEDIN_CHECKLIST, draftAbout, headlineVars, normal
 import { normalizeCv } from '@/lib/cv-model';
 import { cvToPlainText } from '@/lib/export/text';
 import { runAi } from '@/lib/ai/client';
-import { cx, readImage, slug, wordCount } from '@/lib/utils';
+import { cx, downloadBlob, readImage, slug, wordCount } from '@/lib/utils';
+import { toDocumentFile } from '@/lib/export/document';
 import { Select, TagInput, TextArea, TextInput } from '@/components/ui/fields';
 import Icon from '@/components/ui/Icon';
 import { useToast } from '@/components/ui/Toast';
@@ -70,6 +71,7 @@ export default function LinkedInEditor({ repo, docId }: { repo: Repo; docId: str
     { label: 'Banner (1584×396 PNG)', icon: 'download', run: () => download(bannerRef.current, `${base}-linkedin-banner.png`) },
     { label: 'Profile photo (800×800 PNG)', icon: 'download', run: () => download(avatarRef.current, `${base}-linkedin-photo.png`) },
     { label: 'Post image (1200×627 PNG)', icon: 'download', run: () => download(postRef.current, `${base}-linkedin-post.png`) },
+    { label: 'Export kit as JSON', icon: 'download', run: () => downloadBlob(new Blob([JSON.stringify(toDocumentFile(doc), null, 2)], { type: 'application/json' }), `${base}-linkedin.cv-engine.json`) },
     { label: 'Copy headline + About', icon: 'copy', run: async () => { await navigator.clipboard.writeText(`${d.headline}\n\n${d.about}`); toast('Copied', 'success'); } },
   ];
 

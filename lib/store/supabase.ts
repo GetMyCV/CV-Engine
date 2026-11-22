@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { DocumentRecord, Project } from '../types';
+import type { Selection, TemplateRequest } from '../requests';
 import { nowIso } from '../utils';
 import type { AuthBackend, AuthUser, Repo } from './types';
 
@@ -131,6 +132,24 @@ class SupabaseRepo implements Repo {
   }
   async deleteDocument(id: string) {
     check(await supabase().from('documents').delete().eq('id', id));
+  }
+  async listRequests() {
+    const rows = check(await supabase().from('template_requests').select('id, data').order('updated_at', { ascending: false })) as { data: TemplateRequest }[];
+    return rows.map((r) => r.data);
+  }
+  async saveRequest(r: TemplateRequest) {
+    const next = { ...r, updatedAt: nowIso() };
+    check(await supabase().from('template_requests').upsert({ id: r.id, owner_id: this.userId, data: next, updated_at: next.updatedAt }));
+    return next;
+  }
+  async deleteRequest(id: string) {
+    check(await supabase().from('template_requests').delete().eq('id', id));
+  }
+  async listSubmittedSelections() {
+    const rows = check(await supabase().from('template_selections').select('*').order('created_at', { ascending: false }).limit(500)) as {
+      request_id: string; design_id: string; client_name: string; client_email: string; client_phone: string; notes: string; created_at: string;
+    }[];
+    return rows.map((r) => ({ requestId: r.request_id, designId: r.design_id, name: r.client_name, email: r.client_email, phone: r.client_phone, notes: r.notes, at: r.created_at }));
   }
 }
 

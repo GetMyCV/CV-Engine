@@ -2,6 +2,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { auth, cloudEnabled, type AuthUser, type Repo } from '@/lib/store';
+import { NOT_ALLOWED, isAdminEmail } from '@/lib/admin';
 
 type AuthState = {
   user: AuthUser | null;
@@ -22,19 +23,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let alive = true;
+    // Only the administrator may hold a session; anyone else is signed out.
+    const accept = async (u: AuthUser | null) => {
+      if (u && !isAdminEmail(u.email)) {
+        await auth.signOut();
+        return null;
+      }
+      return u;
+    };
     auth
       .current()
+      .then(accept)
       .then((u) => alive && setUser(u))
       .finally(() => alive && setLoading(false));
-    const off = auth.onChange?.((u) => setUser(u));
+    const off = auth.onChange?.((u) => {
+      accept(u).then(setUser);
+    });
     return () => {
       alive = false;
       off?.();
     };
   }, []);
 
-  const signIn = useCallback(async (email: string, password: string) => setUser(await auth.signIn(email, password)), []);
+  const signIn = useCallback(async (email: string, password: string) => {
+    if (!isAdminEmail(email)) throw new Error(NOT_ALLOWED);
+    setUser(await auth.signIn(email, password));
+  }, []);
   const signUp = useCallback(async (name: string, email: string, password: string) => {
+    if (!isAdminEmail(email)) throw new Error(NOT_ALLOWED);
     const res = await auth.signUp(name, email, password);
     if ('pendingConfirmation' in res) return 'confirm' as const;
     setUser(res);

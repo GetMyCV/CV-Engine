@@ -13,6 +13,8 @@ export default function DesignGallery({
   region = 'international',
   thumbWidth = 180,
   initialCategory,
+  selectedIds,
+  only,
 }: {
   cv: CvData;
   selected?: string;
@@ -20,6 +22,10 @@ export default function DesignGallery({
   region?: Region;
   thumbWidth?: number;
   initialCategory?: DesignCategory | 'all';
+  /** Multi-select mode: highlight every id in this list (onSelect toggles). */
+  selectedIds?: string[];
+  /** Restrict the gallery to these designs (a client's shortlist). */
+  only?: string[];
 }) {
   const [cat, setCat] = useState<DesignCategory | 'all'>(initialCategory ?? (region === 'europass' ? 'europass' : region === 'canada' ? 'canadian' : 'all'));
   const [palette, setPalette] = useState('all');
@@ -28,14 +34,19 @@ export default function DesignGallery({
   const [limit, setLimit] = useState(24);
   const list = useMemo(
     () =>
-      DESIGNS.filter((d) => cat === 'all' || d.family.categories.includes(cat))
+      DESIGNS.filter((d) => !only?.length || only.includes(d.id))
+        .filter((d) => cat === 'all' || d.family.categories.includes(cat))
         .filter((d) => palette === 'all' || d.palette.id === palette)
         .filter((d) => family === 'all' || d.family.id === family)
         .filter((d) => !atsOnly || d.ats === 'optimized'),
-    [cat, palette, family, atsOnly],
+    [cat, palette, family, atsOnly, only],
   );
+  // A short, hand-picked list needs no filters.
+  const showFilters = !only?.length || only.length > 24;
   return (
     <div>
+      {showFilters && (
+        <>
       <div className="flex flex-wrap gap-1.5">
         {[{ id: 'all' as const, label: 'All' }, ...CATEGORIES].map((c) => (
           <button key={c.id} onClick={() => { setCat(c.id); setLimit(24); }} className={cx('rounded-full px-3 py-1 text-xs font-semibold', cat === c.id ? 'bg-brand-600 text-white' : 'bg-white text-ink-soft ring-1 ring-slate-200 hover:bg-slate-50')}>
@@ -60,11 +71,14 @@ export default function DesignGallery({
           <input type="checkbox" checked={atsOnly} onChange={(e) => setAtsOnly(e.target.checked)} /> ATS-optimized only
         </label>
       </div>
+        </>
+      )}
       <p className="mt-3 text-xs text-ink-mute">{list.length} designs</p>
       <div className="mt-2 grid gap-4" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${thumbWidth}px, 1fr))` }}>
         {list.slice(0, limit).map((d) => (
-          <button key={d.id} onClick={() => onSelect(d.id)} className={cx('group text-left', selected === d.id && 'scale-[0.98]')}>
-            <div className={cx('overflow-hidden rounded-lg ring-1 transition group-hover:-translate-y-0.5 group-hover:shadow-sheet', selected === d.id ? 'ring-4 ring-brand-500' : 'ring-slate-200')}>
+          <button key={d.id} onClick={() => onSelect(d.id)} aria-pressed={selectedIds ? selectedIds.includes(d.id) : undefined} className={cx('group relative text-left', (selected === d.id || selectedIds?.includes(d.id)) && 'scale-[0.98]')}>
+            {selectedIds?.includes(d.id) && <span className="absolute right-2 top-2 z-10 grid h-6 w-6 place-items-center rounded-full bg-brand-600 text-xs font-bold text-white shadow">✓</span>}
+            <div className={cx('overflow-hidden rounded-lg ring-1 transition group-hover:-translate-y-0.5 group-hover:shadow-sheet', selected === d.id || selectedIds?.includes(d.id) ? 'ring-4 ring-brand-500' : 'ring-slate-200')}>
               <DesignThumb cv={cv} designId={d.id} width={thumbWidth} region={region} />
             </div>
             <div className="mt-1.5 flex items-center justify-between gap-2">

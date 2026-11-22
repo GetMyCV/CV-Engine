@@ -1,14 +1,14 @@
 'use client';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from './AuthProvider';
 import Icon from './ui/Icon';
 import { cx } from '@/lib/utils';
 
 export function Logo({ className = '' }: { className?: string }) {
   return (
-    <Link href="/" className={cx('flex items-center gap-2 font-display text-lg font-bold text-ink', className)}>
+    <Link href="/dashboard" className={cx('flex items-center gap-2 font-display text-lg font-bold text-ink', className)}>
       <span className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 text-sm text-white shadow-sm">CV</span>
       <span>
         CV<span className="text-brand-600">Engine</span>
@@ -19,6 +19,7 @@ export function Logo({ className = '' }: { className?: string }) {
 
 const NAV = [
   { href: '/dashboard', label: 'Projects', auth: true },
+  { href: '/requests', label: 'Client requests', auth: true },
   { href: '/templates', label: 'Templates' },
   { href: '/letters', label: 'Letter templates' },
   { href: '/ats-checker', label: 'ATS checker' },
@@ -30,6 +31,17 @@ export default function AppShell({ children, wide }: { children: React.ReactNode
   const path = usePathname();
   const router = useRouter();
   const [menu, setMenu] = useState(false);
+  const { loading } = useAuth();
+  // The whole app is private to the administrator. Clients only ever see /choose.
+  useEffect(() => {
+    if (!loading && !user) router.replace(`/login?next=${encodeURIComponent(path + window.location.search)}`);
+  }, [loading, user, router, path]);
+  if (loading || !user)
+    return (
+      <div className="grid min-h-screen place-items-center text-sm text-ink-mute">
+        <span className="animate-pulse">{loading ? 'Loading…' : 'Redirecting to sign in…'}</span>
+      </div>
+    );
   return (
     <div className="min-h-screen">
       <header className="no-print sticky top-0 z-40 border-b border-slate-200/70 bg-white/85 backdrop-blur">

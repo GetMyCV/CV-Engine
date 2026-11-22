@@ -1,6 +1,7 @@
 import type { CvData } from '../types';
 import { emptyCv, newEducation, newExperience, newLanguage, normalizeCv } from '../cv-model';
 import { uid } from '../utils';
+import { isDocumentFile } from './document';
 
 /**
  * Import/export in the open JSON Resume schema (jsonresume.org), so users can
@@ -40,9 +41,10 @@ export function toJsonResume(cv: CvData): JR {
   };
 }
 
-/** Accepts JSON Resume or a CV Engine export. Returns null if it is neither. */
+/** Accepts a CV Engine CV export, JSON Resume, or raw CV Engine CV data. Returns null otherwise. */
 export function fromJson(raw: unknown): CvData | null {
   if (!raw || typeof raw !== 'object') return null;
+  if (isDocumentFile(raw)) return raw.kind === 'cv' ? normalizeCv(raw.data as Partial<CvData>) : null;
   const j = raw as JR;
   if (j.personal && j.experience) return normalizeCv(j as Partial<CvData>);
   if (!j.basics) return null;

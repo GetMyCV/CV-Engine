@@ -1,4 +1,5 @@
 import type { DocumentRecord, Project } from '../types';
+import type { Selection, TemplateRequest } from '../requests';
 
 export type AuthUser = { id: string; email: string; name: string; mode: 'local' | 'cloud' };
 
@@ -12,6 +13,11 @@ export interface Repo {
   getDocument(id: string): Promise<DocumentRecord | null>;
   saveDocument(doc: DocumentRecord): Promise<DocumentRecord>;
   deleteDocument(id: string): Promise<void>;
+  listRequests(): Promise<TemplateRequest[]>;
+  saveRequest(r: TemplateRequest): Promise<TemplateRequest>;
+  deleteRequest(id: string): Promise<void>;
+  /** Selections clients submitted online (cloud mode only; empty otherwise). */
+  listSubmittedSelections(): Promise<Selection[]>;
 }
 
 export interface AuthBackend {
