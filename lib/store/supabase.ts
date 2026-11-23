@@ -96,10 +96,31 @@ const toDoc = (d: DocumentRecord, owner: string): DocRow => ({
   updated_at: nowIso(),
 });
 
-const check = <T,>(res: { data: T; error: { message: string } | null }) => {
-  if (res.error) throw new Error(res.error.message);
+export const SETUP_HINT = 'The database is not set up yet. In Supabase, open SQL Editor → New query, paste the whole of supabase/setup.sql from the CV-Engine repository and click Run. Then reload this page.';
+
+/** Turns raw PostgREST errors into messages that say what to do. */
+function friendly(error: { message: string; code?: string }) {
+  if (error.code === 'PGRST205' || error.code === '42P01' || /could not find the table|relation .* does not exist|schema cache/i.test(error.message)) return SETUP_HINT;
+  if (error.code === '42501' || /row-level security/i.test(error.message)) return 'The database refused this account. Make sure supabase/setup.sql has been run (it adds inbox.ashen@gmail.com to public.admins) and that you are signed in with that email.';
+  if (/is_admin|function .* does not exist/i.test(error.message)) return SETUP_HINT;
+  return error.message;
+}
+
+const check = <T,>(res: { data: T; error: { message: string; code?: string } | null }) => {
+  if (res.error) throw new Error(friendly(res.error));
   return res.data;
 };
+
+const authMessage = (m: string) =>
+  /invalid login credentials/i.test(m)
+    ? 'Email or password is incorrect. First time here? Choose “Set up the admin account” to create it.'
+    : /email not confirmed/i.test(m)
+      ? 'Please confirm your email first — open the confirmation link Supabase sent to your inbox, then sign in.'
+      : /user already registered/i.test(m)
+        ? 'This account already exists — choose “Sign in” instead.'
+        : /signups? not allowed|signup is disabled/i.test(m)
+          ? 'New sign-ups are switched off in Supabase. Sign in with the existing admin account.'
+          : m;
 
 class SupabaseRepo implements Repo {
   constructor(private userId: string) {}
@@ -172,7 +193,7 @@ export const supabaseAuth: AuthBackend = {
   },
   async signIn(email, password) {
     const { data, error } = await supabase().auth.signInWithPassword({ email, password });
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(authMessage(error.message));
     return toUser(data.user);
   },
   async signUp(name, email, password) {
@@ -181,7 +202,7 @@ export const supabaseAuth: AuthBackend = {
       password,
       options: { data: { name }, emailRedirectTo: typeof window !== 'undefined' ? `${window.location.origin}${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/dashboard` : undefined },
     });
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(authMessage(error.message));
     if (!data.session || !data.user) return { pendingConfirmation: true };
     return toUser(data.user);
   },
