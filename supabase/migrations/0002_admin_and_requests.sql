@@ -21,12 +21,14 @@ $$;
 
 -- Projects and documents: owner AND admin.
 drop policy if exists "projects: owner full access" on public.projects;
+drop policy if exists "projects: admin owner full access" on public.projects;
 create policy "projects: admin owner full access" on public.projects
   for all to authenticated
   using ((select auth.uid()) = owner_id and (select public.is_admin()))
   with check ((select auth.uid()) = owner_id and (select public.is_admin()));
 
 drop policy if exists "documents: owner full access" on public.documents;
+drop policy if exists "documents: admin owner full access" on public.documents;
 create policy "documents: admin owner full access" on public.documents
   for all to authenticated
   using ((select auth.uid()) = owner_id and (select public.is_admin()))
