@@ -1,11 +1,12 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import AppShell from '@/components/AppShell';
 import { RequireAuth } from '@/components/AuthProvider';
 import { useToast } from '@/components/ui/Toast';
 import type { DocumentRecord, Project } from '@/lib/types';
 import type { AuthUser, Repo } from '@/lib/store';
 import { downloadBlob, nowIso, uid } from '@/lib/utils';
+import { findLocalWorkspace, moveLocalToCloud } from '@/lib/store/migrate-local';
 
 export default function SettingsPage() {
   return <AppShell><RequireAuth>{(ctx) => <Settings {...ctx} />}</RequireAuth></AppShell>;
@@ -14,6 +15,29 @@ export default function SettingsPage() {
 function Settings({ user, repo }: { user: AuthUser; repo: Repo }) {
   const toast = useToast();
   const [busy, setBusy] = useState(false);
+  const [local, setLocal] = useState<{ projects: number; documents: number; requests: number } | null>(null);
+  const [moving, setMoving] = useState('');
+
+  // In cloud mode, offer to bring over anything created earlier in browser-only mode.
+  useEffect(() => {
+    if (user.mode !== 'cloud') return;
+    findLocalWorkspace()
+      .then((ws) => ws && (ws.projects.length || ws.requests.length) && setLocal({ projects: ws.projects.length, documents: ws.documents.length, requests: ws.requests.length }))
+      .catch(() => undefined);
+  }, [user.mode]);
+
+  const moveToCloud = async () => {
+    setMoving('Starting…');
+    try {
+      const res = await moveLocalToCloud(repo, (done, total) => setMoving(`Moving ${done} of ${total}…`));
+      toast(`Moved ${res.projects} projects, ${res.documents} documents and ${res.requests} client requests to the cloud.`, 'success');
+      setLocal(null);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Could not move the data', 'error');
+    } finally {
+      setMoving('');
+    }
+  };
 
   const backup = async () => {
     const projects = await repo.listProjects();
@@ -76,6 +100,17 @@ function Settings({ user, repo }: { user: AuthUser; repo: Repo }) {
           </label>
         </div>
       </div>
+      {local && (
+        <div className="card mt-4 border-emerald-200 bg-emerald-50 p-5">
+          <h2 className="font-semibold">Move your browser data to the cloud</h2>
+          <p className="mt-1 text-sm text-ink-soft">
+            This browser still holds {local.projects} project(s), {local.documents} document(s) and {local.requests} client request(s) from before cloud sync was switched on. Move them into your cloud account so they are available on every device. Running it again updates rather than duplicates.
+          </p>
+          <button className="btn-primary mt-3" onClick={moveToCloud} disabled={Boolean(moving)}>
+            {moving || 'Move to cloud'}
+          </button>
+        </div>
+      )}
       <div className="card mt-4 border-red-200 p-5">
         <h2 className="font-semibold text-red-700">Danger zone</h2>
         <p className="mt-1 text-sm text-ink-soft">Permanently delete all projects and documents in this account.</p>

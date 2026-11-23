@@ -4,6 +4,7 @@ import type { Selection, TemplateRequest } from '../requests';
 import { nowIso } from '../utils';
 import type { AuthBackend, AuthUser, Repo } from './types';
 import { notifyChange } from './events';
+import { SUPABASE_KEY, SUPABASE_URL } from './config';
 
 /**
  * Cloud mode: Supabase Auth for accounts, Postgres for storage. Row Level
@@ -12,7 +13,7 @@ import { notifyChange } from './events';
  */
 let client: SupabaseClient | null = null;
 export function supabase(): SupabaseClient {
-  client ??= createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+  client ??= createClient(SUPABASE_URL, SUPABASE_KEY, {
     auth: { persistSession: true, autoRefreshToken: true },
   });
   return client;

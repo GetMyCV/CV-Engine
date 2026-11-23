@@ -44,14 +44,28 @@ jobs:
       - name: Test
         run: npm test
 
+      - name: Report storage mode
+        env:
+          SB_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || vars.NEXT_PUBLIC_SUPABASE_URL }}
+          SB_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || vars.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+        run: |
+          if [ -n "$SB_URL" ] && [ -n "$SB_KEY" ]; then
+            echo "Storage: Supabase cloud ($SB_URL)"
+          else
+            echo "::warning::Supabase is not configured - the site will use browser-only local workspaces."
+          fi
+
       - name: Build static site
         env:
           BASE_PATH: /CV-Engine
-          # Optional: cloud accounts (public anon key; RLS protects the data).
-          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          # Cloud accounts & sync (Supabase). Read from repository Secrets, or Variables.
+          # Only the project URL and the publishable/anon key belong here — they are
+          # public by design (RLS protects the data). Never the database password.
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || vars.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || vars.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
           # Who may sign in (defaults to inbox.ashen@gmail.com).
-          NEXT_PUBLIC_ADMIN_EMAILS: ${{ vars.NEXT_PUBLIC_ADMIN_EMAILS }}
+          NEXT_PUBLIC_ADMIN_EMAILS: ${{ secrets.NEXT_PUBLIC_ADMIN_EMAILS || vars.NEXT_PUBLIC_ADMIN_EMAILS }}
           # Optional: emails clients' template choices to the admin (Web3Forms access key).
           NEXT_PUBLIC_WEB3FORMS_KEY: ${{ secrets.NEXT_PUBLIC_WEB3FORMS_KEY || vars.NEXT_PUBLIC_WEB3FORMS_KEY }}
           # Optional: a server deployment of this app that runs the AI/grammar routes.
