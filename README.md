@@ -12,6 +12,22 @@ A complete CV-generation platform built with Next.js. Each user gets a private w
 
 Letters are filled automatically from the project (role, company, job ad) and the linked CV (name, current role, skills, best quantified achievement). They also borrow the CV's design, so the CV and letters look like a matching set.
 
+## Connecting Supabase (cloud accounts & sync)
+
+1. **Create the tables.** In Supabase, open **SQL Editor → New query**, paste all of [`supabase/setup.sql`](supabase/setup.sql) and click **Run**. It is safe to run again.
+2. **Set the auth URLs.** In Supabase, open **Authentication → URL Configuration**:
+   - Site URL: `https://getmycv.github.io/CV-Engine/`
+   - Redirect URLs: add `https://getmycv.github.io/CV-Engine/**`
+3. **Add two GitHub secrets.** In GitHub, open **Settings → Secrets and variables → Actions → New repository secret**:
+   - `NEXT_PUBLIC_SUPABASE_URL`: the project URL, e.g. `https://xxxx.supabase.co`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: the **publishable** key (`sb_publishable_…`) or the legacy anon key
+
+   Both values are public by design and end up in the website's JavaScript; Row Level Security protects the data. **Never** add the database password or the secret/service-role key.
+4. **Redeploy.** Re-run the "Deploy to GitHub Pages" workflow (Actions → Run workflow) or push to `main`. The build log prints "Storage: Supabase cloud".
+5. **Create the admin account.** Choose "Set up the admin account" with `inbox.ashen@gmail.com` and confirm the email.
+6. **Lock sign-ups.** In Supabase, open **Authentication → Sign In / Providers** and turn **off** "Allow new users to sign up".
+7. **Move existing work.** Anything created earlier in browser-only mode shows a **Move to the cloud** button on the dashboard and on Account & backups.
+
 ## Access model: private admin + client template links
 
 - **Admin only.** Only `inbox.ashen@gmail.com` can sign in or set up the account (`NEXT_PUBLIC_ADMIN_EMAILS` overrides this). Every page is behind that sign-in: the dashboard, editors, template gallery, letters, ATS checker and guide. Anyone else is sent to the sign-in page and refused.

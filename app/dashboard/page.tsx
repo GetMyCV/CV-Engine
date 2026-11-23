@@ -13,6 +13,7 @@ import { DOC_KINDS, REGIONS } from '@/lib/types';
 import type { Repo, AuthUser } from '@/lib/store';
 import { STATUSES, newProject } from '@/lib/projects';
 import { cx } from '@/lib/utils';
+import { findLocalWorkspace } from '@/lib/store/migrate-local';
 
 export default function DashboardPage() {
   return <AppShell>{<RequireAuth>{(ctx) => <Dashboard {...ctx} />}</RequireAuth>}</AppShell>;
@@ -25,6 +26,11 @@ function Dashboard({ user, repo }: { user: AuthUser; repo: Repo }) {
   const [filter, setFilter] = useState<'all' | Project['status']>('all');
   const [q, setQ] = useState('');
   const toast = useToast();
+  const [localCount, setLocalCount] = useState(0);
+  useEffect(() => {
+    if (user.mode !== 'cloud') return;
+    findLocalWorkspace().then((ws) => setLocalCount(ws?.projects.length ?? 0)).catch(() => undefined);
+  }, [user.mode]);
 
   const load = useCallback(async () => {
     const [p, d] = await Promise.all([repo.listProjects(), repo.listDocuments()]);
@@ -58,6 +64,12 @@ function Dashboard({ user, repo }: { user: AuthUser; repo: Repo }) {
         </button>
       </div>
 
+      {localCount > 0 && (
+        <div className="mt-5 flex flex-wrap items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm">
+          <span className="flex-1">This browser still holds <b>{localCount} project(s)</b> from before cloud sync was switched on.</span>
+          <Link href="/settings" className="btn-primary btn-sm">Move them to the cloud</Link>
+        </div>
+      )}
       <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
           { label: 'Active projects', value: (projects ?? []).filter((p) => p.status !== 'archived').length },
