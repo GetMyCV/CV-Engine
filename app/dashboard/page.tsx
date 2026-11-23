@@ -21,6 +21,7 @@ export default function DashboardPage() {
 
 function Dashboard({ user, repo }: { user: AuthUser; repo: Repo }) {
   const [projects, setProjects] = useState<Project[] | null>(null);
+  const [loadError, setLoadError] = useState('');
   const [docs, setDocs] = useState<DocumentRecord[]>([]);
   const [creating, setCreating] = useState(false);
   const [filter, setFilter] = useState<'all' | Project['status']>('all');
@@ -38,7 +39,9 @@ function Dashboard({ user, repo }: { user: AuthUser; repo: Repo }) {
     setDocs(d);
   }, [repo]);
   useEffect(() => {
-    load().catch((e) => toast(e.message, 'error'));
+    load()
+      .then(() => setLoadError(''))
+      .catch((e) => setLoadError(e instanceof Error ? e.message : 'Could not load your projects.'));
   }, [load, toast]);
 
   const shown = useMemo(
@@ -94,7 +97,13 @@ function Dashboard({ user, repo }: { user: AuthUser; repo: Repo }) {
         <input className="input ml-auto max-w-xs" placeholder="Search projects…" value={q} onChange={(e) => setQ(e.target.value)} />
       </div>
 
-      {projects === null ? (
+      {loadError ? (
+        <div className="card mt-8 border-red-200 bg-red-50 p-6" role="alert">
+          <h2 className="font-display text-lg font-semibold text-red-800">Your projects could not be loaded</h2>
+          <p className="mt-2 text-sm text-red-900">{loadError}</p>
+          <button className="btn-secondary mt-4" onClick={() => load().then(() => setLoadError('')).catch((e) => setLoadError(e.message))}>Try again</button>
+        </div>
+      ) : projects === null ? (
         <p className="mt-10 animate-pulse text-sm text-ink-mute">Loading projects…</p>
       ) : projects.length === 0 ? (
         <div className="card mt-8 p-10 text-center">
